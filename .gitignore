@@ -1,0 +1,29 @@
+# Helper for avoid uploading larger datasets to github
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment, this is built using build.sh,
+#   contains all external 3rd libraries and frameworks
+#   not appropriate to upload to github
+venv/
+
+# Do not include datasets or logs, these are unnecessary as well
+# Neither the models that are trained.
+data/datasets
+logs/logs
+src/models/store
+
+# IDE/project files are not to be uploaded under
+.vscode/
+.venv
+*.log
+
+# Data/model files
+*.csv
+*.pkl
+*.h5
+*.npy
+
