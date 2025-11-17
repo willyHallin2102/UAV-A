@@ -26,4 +26,3 @@ src/models/store
 *.pkl
 *.h5
 *.npy
-
