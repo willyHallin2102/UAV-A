@@ -150,8 +150,6 @@ def _combine_angles(
 #     return np.rad2deg(phi_r), np.rad2deg(theta_r)
 
 
-
-
 def add_angles(
     phi0: ArrayLike, theta0: ArrayLike,
     phi1: ArrayLike, theta1: ArrayLike
@@ -164,12 +162,3 @@ def sub_angles(
     phi1: ArrayLike, theta1: ArrayLike
 ) -> Tuple[ArrayF, ArrayF]:
     return _combine_angles(phi0, theta0, phi1, theta1, inverse=True)
-
-# def add_angles(phi0: ArrayLike, theta0: ArrayLike,
-#                phi1: ArrayLike, theta1: ArrayLike) -> Tuple[ArrayF, ArrayF]:
-#     return _combine_angles(phi0, theta0, phi1, theta1, inverse=False)
-
-
-# def sub_angles(phi0: ArrayLike, theta0: ArrayLike,
-#                phi1: ArrayLike, theta1: ArrayLike) -> Tuple[ArrayF, ArrayF]:
-#     return _combine_angles(phi0, theta0, phi1, theta1, inverse=True)
