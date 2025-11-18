@@ -22,8 +22,7 @@ def get_city_data(cities: Union[str, List]="all", logger=None):
     supported = {"beijing", "boston", "london", "moscow", "tokyo"}
     invalid = set(city_list) - supported
     
-    if invalid: 
-        sys.exit(1)
+    if invalid: sys.exit(1)
     
     files = [f"uav_{city}/train.csv" for city in city_list]
     loader = DataLoader(logger=logger)
