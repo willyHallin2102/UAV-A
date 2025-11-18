@@ -32,7 +32,6 @@ def _normalize_angle_degree(phi: ArrayF) -> ArrayF:
     return (phi + 180.0) % 360.0 - 180.0
 
 
-
 # ---------------========== Cartesian <=> Spherical ==========---------------- #
 
 def cartesian_to_spherical(dvec: ArrayLike) -> Tuple[ArrayF, ArrayF, ArrayF]:
