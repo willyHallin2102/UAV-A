@@ -219,7 +219,7 @@ class Logger:
             # Console handler
             if reference.use_console:
                 console_handler = logging.StreamHandler(sys.stdout)
-                ch.setFormatter(ConsoleFormatter())
+                console_handler.setFormatter(ConsoleFormatter())
                 handlers.append(console_handler)
 
             # Create listener
