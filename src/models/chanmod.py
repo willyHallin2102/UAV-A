@@ -17,7 +17,7 @@ from pathlib import Path
 from src.config.data import DataConfig
 
 from src.models.link import LinkStatePredictor
-# from src.models.path import PathModel
+from src.models.path import PathModel
 
 from logs.logger import LogLevel
 
@@ -54,6 +54,12 @@ class ChannelModel:
             add_zero_los_frac=config.add_zero_los_frac, level=loglevel
         )
     
+        self.path = PathModel(
+                directory=self.directory/model_type.lower(), 
+                model_type=model_type, rx_types=config.rx_types, 
+                n_max_paths=config.n_max_paths, max_path_loss=config.max_path_loss,
+                loglevel=loglevel
+            )
 
     @staticmethod
     def _set_seed(seed: int=42):

@@ -385,7 +385,7 @@ class LinkStatePredictor:
         if n_add <= 0:
             self.logger.debug("No zero-LOS augmentation added.")
             return dvec, rx_type, link_state
-        
+
         self.logger.debug(f"Adding {n_add} synthetic LOS-zero samples for augmentation.")
         index = np.random.choice(n_samples, size=n_add, replace=True)
 
