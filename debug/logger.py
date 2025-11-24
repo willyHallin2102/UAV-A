@@ -159,7 +159,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     rotation_parser = subparsers.add_parser("rotation", help="Test file rotation")
     add_common_args(rotation_parser)
-    rotation_parser.add_argument("--message-size", type=int, default=5000, help="Size of each message")
+    rotation_parser.add_qargument("--message-size", type=int, default=5000, help="Size of each message")
 
     multi_parser = subparsers.add_parser("multiple", help="Test multiple logger instances")
     add_common_args(multi_parser)
