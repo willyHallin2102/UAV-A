@@ -8,10 +8,11 @@ from typing import Dict, Final, List, Optional, Tuple, Union
 
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 
-from data.file_handler import HandlerFactory, BaseFileHandler
+from data.file_handlers import HandlerFactory, BaseFileHandler
 from data.data_processing import DataProcessor
 
 from logs.logger import Logger, LogLevel
+
 
 
 # ---------------========== Data Loader ==========--------------- #
@@ -115,7 +116,7 @@ def shuffle_and_split(
     """
     Shuffle and split dataset into training and validation subsets.
     """
-    lengths = {len(v) for v in data.values()}
+    lengths = {len(value) for value in data.values()}
     if len(lengths) != 1:
         raise ValueError(f"Inconsistent array lengths detected: {lengths}")
 
@@ -126,6 +127,6 @@ def shuffle_and_split(
 
     train_idx, val_idx = indices[:split_idx], indices[split_idx:]
     return (
-        {k: v[train_idx] for k, v in data.items()},
-        {k: v[val_idx] for k, v in data.items()},
+        {key: value[train_idx] for key, value in data.items()},
+        {key: value[val_idx] for key, value in data.items()},
     )

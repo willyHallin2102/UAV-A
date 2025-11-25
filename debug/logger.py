@@ -130,7 +130,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     def add_common_args(p: argparse.ArgumentParser):
         p.add_argument(
-            "--loglevel", type=str, default="INFO", help="loglevel assignment",
+            "--loglevel", type=str, default="DEBUG", help="loglevel assignment",
             choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         )
         p.add_argument(

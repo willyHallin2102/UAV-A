@@ -116,6 +116,14 @@ class Logger:
     # ---------------========== Handler Setup ==========--------------- #
 
     def _setup_handlers(self):
+        """
+        Configure the logging handlers for this instance.
+
+        It removes any existing handlers to prevent duplicate logging, then
+        attaches either a direct console handler (for synchronous logging)
+        or a QueueHandler that feeds records into the shared asynchronous
+        logging infrastructure. 
+        """
         # Remove old handlers avoiding duplicate messages (unnecessary)??
         for handler in list(self.logger.handlers):
             self.logger.removeHandler(handler)
@@ -140,6 +148,13 @@ class Logger:
     
     @classmethod
     def _ensure_infrastructure(cls, reference):
+        """
+        Initialize the shared asynchronous logging infrastructure.
+
+        Creates the global log queue, configures file/console handlers, 
+        and starts the background QueueListener thread. This method is 
+        safe to call multiple times and will only initialize the system once.
+        """
         if cls._initialized:
             return
 
@@ -179,6 +194,15 @@ class Logger:
     # ---------------========== API Methods ==========--------------- #
 
     def log(self, level: Union[LogLevel, int], msg, **extra):
+        """
+        Log a message at the specified log level.
+
+        Args:
+        -----
+        level : Logging severity for the message.
+        msg : Message to log.
+        **extra : Additional structured metadata to include in the log record.
+        """
         lvl = level.value if isinstance(level, LogLevel) else int(level)
         try: self.logger.log(lvl, msg, extra=extra)
         except Exception: sys.stderr.write(f"[Logger-Error] {msg}\n")
@@ -192,9 +216,22 @@ class Logger:
     def exception(self, msg, **extra):
         self.logger.exception(msg, extra=extra, exc_info=True)
     
-    # Exception Timing
+    # Exception Timing -- NOTE:: This return message under specified loglevel,
+    # NOTE: Could be confusing if assign WARNING, ERROR or CRITICAL Looks weird but works.
     @contextmanager
     def time_block(self, label: str="exe-time", level: LogLevel=LogLevel.INFO):
+        """
+        Context manager for measuring execution duration of a block of code.
+
+        Parameters
+        ----------
+        label : str, optional
+            Text label included in the timing log message.
+        level : LogLevel, optional
+            Log level used for reporting the timing result.
+
+        Logs the elapsed time when the context exits.
+        """
         start = time.perf_counter()
         try: yield
         finally:
@@ -206,6 +243,12 @@ class Logger:
 
     @classmethod
     def get_logger(cls, name: str, **kwargs):
+        """
+        Retrieve an existing logger instance by name, or create one 
+        if it does not exist. Ensures that loggers are reused rather 
+        than created repeatedly across the application.
+        """
+
         with cls._instances_lock:
             if name not in cls._instances:
                 cls._instances[name] = Logger(name, **kwargs)
@@ -214,6 +257,15 @@ class Logger:
 
     @classmethod
     def shutdown_all(cls):
+        """
+        Shut down the logging system and close all active handlers.
+
+        Stops the background listener thread, closes global handlers, 
+        removes handlers from all logger instances, and calls 
+        `logging.shutdown()`. This is automatically registered to 
+        run at interpreter exit.
+        """
+
         if cls._shutdown: return
         cls._shutdown = True
 
