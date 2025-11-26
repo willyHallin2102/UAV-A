@@ -18,13 +18,9 @@ from threading import Lock
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Union
-
-import sys
-import time
-import atexit
+import sys, time, atexit
 
 from logs.formatters import JsonFormatter, ConsoleFormatter
-
 
 
 

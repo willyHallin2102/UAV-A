@@ -1,8 +1,11 @@
 """
-    data/file_handler.py
-    --------------------
-    Class for managing file processing, modular approach to enable additional 
-    file-format support. 
+    data/file_handlers.py
+    ---------------------
+    Class `FileHandler` is a subclass for the `DataLoader` class
+    for handling various file formats, this enable simpler
+    extension for additional formats. The purpose of this class
+    is to specifically reconfigure any given data-format stored 
+    data into `pandas.DataFrame`
 """
 from __future__ import annotations
 
@@ -39,24 +42,25 @@ class BaseFileHandler(ABC):
         pass
 
 
-    @abstractmethod
-    def save(self, data: Dict[str, np.ndarray], filepath: Path) -> None:
-        """Save structured data to a file."""
-        pass
-
+    # @abstractmethod
+    # def save(self, data: Dict[str, np.ndarray], filepath: Path) -> None:
+    #     """Save structured data to a file."""
+    #     pass
 
     def _prepare_dataframe(self, data: Dict[str, np.ndarray]) -> pd.DataFrame:
-        """
-        Helper: Convert dict of numpy arrays to DataFrame.
-        Converts object/nested arrays to list for serialization.
-        """
-        df_dict = {}
+        df_dict: Dict[str, list] = {}
         for key, array in data.items():
-            if array.dtype == object: df_dict[key] = [
-                    v.tolist() if isinstance(v, np.ndarray) else v for v in arr
-                ]
-            else: df_dict[key] = array
-        return pd.DataFrame(df_dict)
+            if isinstance(array, list): array = np.asarray(array, dtype=object)
+
+            if array.ndim == 1:
+                if array.dtype == object:
+                    df_dict[key] = [orjson.dumps(value).decode("utf-8") if isinstance(
+                            value, (list, np.ndarray)
+                        ) else value for value in array]
+                else: df_dict[key] = array.tolist()
+            else: df_dict[key] = [
+                orjson.dumps(value.tolist()).decode("utf-8") for value in array
+            ]
 
 
 # ---------------========== CSV Handler Implementation ==========--------------- #
@@ -76,9 +80,7 @@ class CsvHandler(BaseFileHandler):
             convert_opts = pv.ConvertOptions(auto_dict_encode=False)
 
             reader = pv.open_csv(
-                filepath,
-                read_options=read_opts,
-                convert_options=convert_opts
+                filepath, read_options=read_opts, convert_options=convert_opts
             )
 
             for batch in reader:
@@ -92,24 +94,27 @@ class CsvHandler(BaseFileHandler):
             raise
 
 
-    def save(self, data: Dict[str, np.ndarray], filepath: Path) -> None:
-        df = self._prepare_dataframe(data)
-        try:
-            table = pa.Table.from_pandas(df, preserve_index=False)
+    # def save(self, data, filepath):
+    #     df = self._prepare_dataframe(data)
 
-            write_opts = pv.WriteOptions(include_header=True)
-            pv.write_csv(table, filepath, write_options=write_opts)
+    #     try:
+    #         # Detect columns that PyArrow cannot handle
+    #         if any(df[col].dtype == object for col in df.columns):
+    #             raise ArrowInvalid("Object columns — forcing pandas CSV write")
 
-            self.logger.info(f"[CsvHandler] Saved {len(df):,} rows to {filepath}")
+    #         table = pa.Table.from_pandas(df, preserve_index=False)
+    #         write_opts = pv.WriteOptions(include_header=True)
+    #         pv.write_csv(table, filepath, write_options=write_opts)
 
-        except (ArrowInvalid, ArrowTypeError) as e:
-            self.logger.warning(f"[CsvHandler] Arrow write failed; using pandas: {e}")
-            df.to_csv(filepath, index=False)
-            self.logger.info(f"[CsvHandler] Saved {len(df):,} rows via pandas")
+    #         self.logger.info(f"[CsvHandler] Saved {len(df):,} rows to {filepath}")
 
-        except Exception as e:
-            self.logger.error(f"[CsvHandler] Unexpected error: {e}")
-            raise
+    #     except Exception as e:
+    #         self.logger.warning(
+    #             f"[CsvHandler] Arrow write failed; using pandas instead: {e}"
+    #         )
+    #         df.to_csv(filepath, index=False)
+    #         self.logger.info(f"[CsvHandler] Saved {len(df):,} rows via pandas")
+
 
 
 
@@ -117,8 +122,7 @@ class CsvHandler(BaseFileHandler):
 
 class HandlerFactory:
     HANDLERS: Dict[str, Type[BaseFileHandler]] = {
-        ".csv": CsvHandler,
-        "csv": CsvHandler,
+        ".csv": CsvHandler, "csv": CsvHandler,
     }
 
     @classmethod
@@ -133,3 +137,4 @@ class HandlerFactory:
     @classmethod
     def register_handler(cls, fmt: str, handler_cls: Type[BaseFileHandler]) -> None:
         cls.HANDLERS[fmt.lower()] = handler_cls
+

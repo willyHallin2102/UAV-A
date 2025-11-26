@@ -1,9 +1,14 @@
 """
     data/data_processing.py
     -----------------------
-    Processing the data from the stored data files, this script manages the 
-    extraction from these files into numpy string dictionary representation. 
+    Script acting as a subclass or helper to the `DataLoader`
+    instance. This class processing data primarily for save/load
+    and formulate the data file object into a numpy format into
+    the program. This class is invoked by `DataLoader` as instance
+    and work silently along side it.
 """
+from __future__ import annotations
+
 import orjson
 import numpy as np
 import pandas as pd

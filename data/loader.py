@@ -1,3 +1,13 @@
+"""
+    data/loader.py
+    --------------
+    Data loader is being responsible for managing the data for the 
+    UAV trajectories. This object attach a data-processing instance
+    and a file-handler instance in order to manage specifically 
+    save and load data from a root directory where all the datasets 
+    are collected and stored.
+"""
+from __future__ import annotations
 
 import numpy as np
 import pandas as pd
@@ -43,20 +53,25 @@ class DataLoader:
         )
         self.processor = DataProcessor(self.logger)
 
+
     # -------------------- Saving -------------------- #
 
     def save(self,
-        data: Dict[str, np.ndarray],
-        filepath: Union[str, Path],
-        fmt: str = "csv"
+        data: Dict[str,np.ndarray], filepath: Union[str,Path], fmt: str="csv"
     ) -> None:
-        """Save structured data using the appropriate handler."""
         filepath = Path(self.directory) / filepath
         filepath = filepath.with_suffix(f".{fmt.lower()}")
         filepath.parent.mkdir(parents=True, exist_ok=True)
-
+        # Convert any 2D arrays to the expected format before saving
+        processed = {}
+        for key, array in data.items():
+            if array.ndim == 2: processed[key]=array.tolist()
+            else: processed[key]=array
+        
         handler = HandlerFactory.get_handler(fmt, self.logger)
-        handler.save(data, filepath)
+        print("Here Loader")
+        handler.save(processed, filepath)
+
 
     # -------------------- Loading -------------------- #
 
@@ -130,3 +145,4 @@ def shuffle_and_split(
         {key: value[train_idx] for key, value in data.items()},
         {key: value[val_idx] for key, value in data.items()},
     )
+
