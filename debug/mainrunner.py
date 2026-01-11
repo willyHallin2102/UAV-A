@@ -28,7 +28,6 @@ import traceback
 
 from functools import wraps
 from typing import Callable
-from logs.logger import Logger
 
 
 def mainrunner(f: Callable) -> Callable:
@@ -45,6 +44,5 @@ def mainrunner(f: Callable) -> Callable:
             print(f"Test failed: {e}")
             traceback.print_exc()
             raise
-        finally: Logger.shutdown()
     
     return wrapper

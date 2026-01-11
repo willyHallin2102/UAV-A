@@ -39,7 +39,7 @@ def build_parser(commands: List[CommandSpec]) -> argparse.ArgumentParser:
         add_common_arguments(p)
 
         for argument in command.extra_args:
-            p.add_argument(*arg["flags"], **arg["kwargs"])
+            p.add_argument(*argument["flags"], **argument["kwargs"])
         
         # Bind handler directly (argparse-native, no lookup dict)
         p.set_defaults(_handler=command.handler)
