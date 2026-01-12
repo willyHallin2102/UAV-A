@@ -1,28 +1,3 @@
-# import sys
-# import traceback
-
-# from typing import Any, Callable
-# from logs.logger import Logger
-
-# def run_main(f: Callable[[], Any]) -> None:
-#     """
-#     Standard test runner with proper cleanup
-#     """
-#     try: f()
-    
-#     except KeyboardInterrupt:
-#         print("\nAborted by user")
-#         Logger.shutdown()
-#         sys.exit(0)
-    
-#     except Exception as e:
-#         print(f"Test failed: {e}")
-#         traceback.print_exc()
-#         Logger.shutdown()
-#         sys.exit(1)
-    
-#     finally: Logger.shutdown()
-
 import sys
 import traceback
 
