@@ -61,7 +61,7 @@ if [ -f "requirements.txt" ]; then
     fi
 else
     echo "[Info]: Installing base dependencies..."
-    pip install pandas seaborn scikit-learn tqdm orjson pyarrow
+    pip install pandas seaborn scikit-learn tqdm orjson pyarrow numba
 fi
 
 # Install Sionna only if missing
