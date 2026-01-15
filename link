@@ -1,0 +1,259 @@
+
+from __future__ import annotations
+
+import orjson
+import pickle
+import numpy as np
+import tensorflow as tf
+
+from tensorflow.keras import regularizers
+tfk, tfkl = tf.keras, tf.keras.layers
+
+from pathlib import Path
+from typing import Dict, List, Tuple, Union
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+from src.config.data import LinkState
+from src.config.const import CONFIG_FN, WEIGHTS_FN, PREPROC_FN
+
+
+AUTOTUNE = tf.data.AUTOTUNE
+
+class LinkStatePredictor:
+    def __init__(self,
+        rx_types: List[Union[str,int]], n_unit_links: Tuple[int,...],
+        add_zero_los_frac: float=0.1, dropout_rate: float=0.2, 
+        directory: Union[str,Path]="link", seed: int=42
+    ):
+        """
+            Initialize Link-State Predictor Instance
+        """
+        self.directory = Path(directory)
+        self.directory.mkdir(parents=True, exist_ok=True)
+
+        self.model, self.link_scaler, self.rx_type_encoder = None, None, None
+
+        # Parameters
+        self.rx_types = list(rx_types)
+        self.n_unit_links = tuple(n_unit_links)
+        self.add_zero_los_frac = int(add_zero_los_frac)
+        self.dropout_rate = float(dropout_rate)
+        self.seed = int(seed)
+
+        self.__version__ = 1
+        self.history = None
+    
+
+    # ============================================================
+    #       Model Construction
+    # ============================================================
+
+    def build(self):
+        layers = [tfkl.Input(shape=(2 * len(self.rx_types),), name="input")]
+        for idx, units in enumerate(self.n_unit_links):
+            layers.append(tfkl.Dense(
+                units=units, activation=None, kernel_initializer="he_normal",
+                name=f"hidden-{idx}"
+            ))
+            layers.append(tfkl.Activation("relu"))
+
+        layers.append(tfkl.Dense(
+            units=LinkState.N_STATES, activation="softmax", name="output"
+        ))
+        self.model = tfk.models.Sequential(layers)
+
+
+    # ============================================================
+    #       Model Fitting Method
+    # ============================================================ 
+
+    def fit(self,
+        dtr: Dict[str,np.ndarray], dts: Dict[str,np.ndarray],
+        epochs: int=50, batch_size: int=512, learning_rate: float=1e-3
+    ) -> tfk.callbacks.History:
+        """
+        """
+        xtr, ytr = self._prepare_arrays(dtr, fit=True)
+        xts, yts = self._prepare_arrays(dts, fit=False)
+        self.model.compile(
+            optimizer=tfk.optimizers.Adam(learning_rate=learning_rate),
+            loss='sparse_categorical_crossentropy', metrics=["accuracy"]
+        )
+
+        tds = tf.data.Dataset.from_tensor_slices((xtr,ytr)).batch(batch_size).prefetch(AUTOTUNE)
+        vds = tf.data.Dataset.from_tensor_slices((xts,yts)).batch(batch_size).prefetch(AUTOTUNE)
+        
+        self.history = self.model.fit(
+            tds, epochs=epochs, validation_data=vds, verbose=1
+        )
+        return self.history
+    
+
+    # ============================================================
+    #       Model Predictions
+    # ============================================================ 
+
+    def predict(self,
+        dvec: np.ndarray, rx_type: np.ndarray, batch_size: int=512
+    ) -> np.ndarray:
+        """
+        """
+        x = self._transform_links(dvec, rx_type, fit=False)
+        return self.model.predict(x, batch_size=batch_size, verbose=0)
+    
+
+# np.where is wrong:
+#     1. link_state = np.argmax(u[:,None] <= cdf, axis=1) vectorized
+#     2. for i in range(cdf.shape[1]):
+#           link_state[u <= cdf[:, i]] = i
+
+    def sample_link_state(self,
+        dvec: np.ndarray, rx_type: np.ndarray, batch_size: int=512
+    ):
+        probabilities = self.predict(dvec, rx_type, batch_size)
+        cdf = np.cumsum(probabilities, axis=1)
+        link_state = np.zeros(probabilities.shape[0])
+
+        u = np.random.uniform(0, 1, probabilities.shape[0])
+        for idx in range(cdf.shape[1] - 1):
+            link_state[np.where(u > cdf[:,idx])[0]]
+        
+        return link_state
+
+
+    # ============================================================
+    #       Saving & Loading
+    # ============================================================
+
+    def save(self):
+        with open(self.directory / CONFIG_FN, "wb") as fp:
+            fp.write(orjson.dumps({
+                "version"       : self.__version__,
+                "framework"     : {"tensorflow": tf.__version__},
+                "config": {
+                    "rx_types"      : self.rx_types,
+                    "n_unit_links"  : self.n_unit_links,
+                    "add_frac_los_frac" : self.add_zero_los_frac,
+                    "dropout_rate"  : self.dropout_rate,
+                    "seed"          : self.seed
+                },
+                "history": getattr(self, "history", None).history if hasattr(self, "history") else None
+            }, option=orjson.OPT_INDENT_2))
+        
+        # Save the Model
+        self.model.save_weights(str(self.directory / WEIGHTS_FN))
+        with open(self.directory / PREPROC_FN, "wb") as fp:
+            pickle.dump({
+                "link_scaler"   : self.link_scaler,
+                "rx_encoder"    : self.rx_type_encoder,
+            }, fp)
+    
+
+    def load(self):
+        if not (self.directory / CONFIG_FN).exists():
+            raise FileNotFoundError("Missing model config file")
+        if not (self.directory / WEIGHTS_FN).exists():
+            raise FileNotFoundError("Missing model weights file")
+        if not (self.directory / PREPROC_FN).exists():
+            raise FileNotFoundError("Missing preprocessors file")
+        
+        # Load model config
+        with open(self.directory / CONFIG_FN, "rb") as fp:
+            payload = orjson.loads(fp.read())
+        
+        if payload.get("version", 0) != self.__version__:
+            print("Warning version mismatch")
+        
+        config = payload.get("config", {})
+        self.rx_types = config.get("rx_types", self.rx_types)
+        self.n_unit_links = tuple(config.get("n_unit_links", self.n_unit_links))
+        self.add_zero_los_frac = float(config.get("add_zero_los_frac", self.add_zero_los_frac))
+        self.dropout_rate = float(config.get("dropout_rate", self.dropout_rate))
+        
+        # Load preprocessors using pickle
+        with open(self.directory / PREPROC_FN, "rb") as fp:
+            preproc_data = pickle.load(fp)
+        
+        self.link_scaler = preproc_data["link_scaler"]
+        self.rx_type_encoder = preproc_data["rx_encoder"]
+
+        self.build()
+        self.model.load_weights(str(self.directory / WEIGHTS_FN))
+
+        if payload.get("history"):
+            self.history = payload["history"]
+        
+        print("Loaded data")
+
+    # ============================================================
+    #       Internal Processing 
+    # ============================================================ 
+
+    def _prepare_arrays(self,
+        data: Dict[str, np.ndarray], fit:bool=False
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        """
+        dvec = np.asarray(data["dvec"], dtype=np.float32)
+        rx_type = np.asarray(data["rx_type"])
+        rx_map = {
+            0: "Rx0", 1: "Rx1", "0": "Rx0", "1": "Rx1", "Rx0": "Rx0", "Rx1": "Rx1",
+        }
+        rx_type = np.vectorize(rx_map.__getitem__)(rx_type)
+        link_state = np.asarray(data["link_state"], dtype=np.int32)
+
+        if fit:
+            self.rx_type_encoder = OneHotEncoder(
+                categories=[list(self.rx_types)],
+                sparse_output=False,
+                handle_unknown="ignore"
+            )
+            self.rx_type_encoder.fit(rx_type[:, None])  # ← REQUIRED
+            self.link_scaler = StandardScaler()
+        
+        dvec, rx_type, link_state = self._add_los_zero(dvec, rx_type, link_state)
+        return (
+            self._transform_links(dvec, rx_type, fit=fit), link_state
+        )
+
+
+    def _transform_links(self,
+        dvec: np.ndarray, rx_type: np.ndarray, fit: bool = False
+    ) -> np.ndarray:
+        """
+        """
+        dr = np.linalg.norm(dvec[:,:2], axis=1, keepdims=True)
+        dh = dvec[:,2:3]
+        if self.rx_type_encoder is None:
+            raise RuntimeError("Encoder not initialized. Call `_prepare_arrays` first")
+        
+        rx_one = self.rx_type_encoder.transform(rx_type[:, None]).astype(np.float32)
+        x = np.hstack([rx_one * dr, rx_one * dh])
+        if self.link_scaler is None:
+            raise RuntimeError("Scaler not initialized. Call `_prepare_arrays`")
+
+        return self.link_scaler.fit_transform(x) if fit else self.link_scaler.transform(x)
+
+
+    def _add_los_zero(self,
+        dvec: np.ndarray, rx_type: np.ndarray, link_state: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        """
+        n_samples = len(dvec)
+        n_add = int(n_samples * self.add_zero_los_frac)
+        if n_add <= 0:
+            return dvec, rx_type, link_state
+        
+        idx = np.random.choice(n_samples, size=n_add, replace=True)
+        dvec_i = np.zeros_like(dvec[idx])
+        dvec_i[:,2] = np.maximum(dvec[idx,2], 0)
+
+        rx_type_i = rx_type[idx]
+        link_state_i = np.full(n_add, LinkState.LOS, dtype=link_state.dtype)
+
+        return (
+            np.concatenate([dvec, dvec_i], axis=0),
+            np.concatenate([rx_type, rx_type_i], axis=0),
+            np.concatenate([link_state, link_state_i], axis=0)
+        )
