@@ -12,7 +12,7 @@ from typing import ClassVar, Dict, Final, Type
 
 
 class ModelType(str, Enum):
-    VAE     = "str"
+    VAE     = "vae"
 
 
 @dataclass
