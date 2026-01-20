@@ -18,6 +18,7 @@ from tests.debug.parser import build_parser, mainrunner, CommandSpec
 
 def test_build_path_model(args: argparse.Namespace):
     c = ChannelModel()
+    c.path.build()
 
 # ============================================================
 #       Main Script

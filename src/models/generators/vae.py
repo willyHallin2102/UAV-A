@@ -43,10 +43,10 @@ class Vae(Genai):
 
     def __init__(self,
         n_latent: int, n_data: int, n_conditions: int, 
-        encoder_layout: Tuple[int,...], decoder_layers: Tuple[int,...],
-        min_variance: float=1e-4, dropout_out: float=0.2, beta: float=0.5,
-        beta_annealing_step: int=10_000, kl_warm_steps: int=1000,
-        init_kernel: float=10.0, bias_kernel: float=10.0, n_sort: int=0
+        encoder_layers: Tuple[int,...], decoder_layers: Tuple[int,...],
+        min_variance: float=1e-4, dropout_rate: float=0.2, beta: float=0.5,
+        beta_annealing_step: int=10_000, kl_warmup_steps: int=1000,
+        init_kernel: float=10.0, init_bias: float=10.0, n_sort: int=0
     ):
         """
             Initialize VAE instance 

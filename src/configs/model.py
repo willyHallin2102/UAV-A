@@ -102,6 +102,11 @@ class VaeConfig(ModelConfig):
 
 
 
+
+# ======================================================================
+#       Configurations Factory Management
+# ======================================================================
+
 MODEL_CONFIGS: Dict[str, Type[ModelConfig]] = {
     ModelType.VAE: VaeConfig,
 }

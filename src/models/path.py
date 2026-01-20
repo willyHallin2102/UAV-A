@@ -124,17 +124,18 @@ class PathModel:
     def build(self):
         if self.model_type == "vae":
             from src.models.generators.vae import Vae
+            # print(self.config.dropout_rate)
             self.model = Vae(
                 n_latent=self.config.n_latent,
                 n_data=self.n_max_paths * (2 + AngleIndex.n_angles),
                 n_conditions=3 + max(len(self.rx_types), 1),
-                encoder_layout=self.config.encoder_layers,
+                encoder_layers=self.config.encoder_layers,
                 decoder_layers=self.config.decoder_layers,
                 min_variance=self.config.min_variance,
                 dropout_rate=self.config.dropout_rate,
                 beta_annealing_step=self.config.beta_annealing_step,
-                kl_warm_steps=self.config.kl_warm_steps,
-                init_kernel=self.config.init_kernel, bias_kernel=self.config.init_bias,
+                kl_warmup_steps=self.config.kl_warmup_steps,
+                init_kernel=self.config.init_kernel, init_bias=self.config.init_bias,
                 n_sort=self.n_max_paths
             )
         
